@@ -1,6 +1,7 @@
 import { useDesignStore } from '../store/design'
 import { THEMES } from '../themes/palettes'
 import type { PatternType } from '../types'
+import SharePanel from './SharePanel'
 
 const PATTERNS: { value: PatternType; label: string }[] = [
   { value: 'spiral',  label: '🌀 螺旋' },
@@ -96,6 +97,8 @@ export default function Sidebar() {
         <button onClick={() => store.exportSvg()} className="flex-1 py-2 bg-teal-600 rounded text-sm font-medium">⬇ SVG</button>
         <button onClick={() => store.exportPng()} className="flex-1 py-2 bg-rose-600 rounded text-sm font-medium">⬇ PNG</button>
       </div>
+
+      <SharePanel />
     </div>
   )
 }
