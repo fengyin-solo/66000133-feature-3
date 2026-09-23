@@ -1,4 +1,6 @@
 import { useDesignStore } from '../store/design'
+import { useShareStore } from '../store/share'
+import { useHistoryStore } from '../store/history'
 import { THEMES } from '../themes/palettes'
 import type { PatternType } from '../types'
 
@@ -10,8 +12,26 @@ const PATTERNS: { value: PatternType; label: string }[] = [
   { value: 'noise',   label: '🎲 噪声场' },
 ]
 
+function relativeTime(ts: number): string {
+  const diff = Date.now() - ts
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return '刚刚'
+  if (min < 60) return `${min} 分钟前`
+  const hours = Math.floor(min / 60)
+  if (hours < 24) return `${hours} 小时前`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days} 天前`
+  return new Date(ts).toLocaleDateString('zh-CN')
+}
+
 export default function Sidebar() {
   const store = useDesignStore()
+  const shareStatus = useShareStore(s => s.status)
+  const publish = useShareStore(s => s.publish)
+  const restore = useShareStore(s => s.restore)
+  const entries = useHistoryStore(s => s.entries)
+  const removeEntry = useHistoryStore(s => s.remove)
+  const clearHistory = useHistoryStore(s => s.clear)
 
   return (
     <div className="w-72 bg-gray-900 border-l border-gray-700 p-4 overflow-y-auto flex flex-col gap-4">
@@ -91,10 +111,69 @@ export default function Sidebar() {
           onChange={e => store.setParam('opacity', Number(e.target.value))} className="w-full accent-pink-500" />
       </div>
 
+      {/* Share */}
+      <div className="rounded-lg border border-indigo-700/60 bg-indigo-950/40 p-3 flex flex-col gap-2">
+        <div className="text-xs text-gray-300 font-medium">🔗 作品链接</div>
+        <button
+          onClick={publish}
+          className={`w-full py-2 rounded text-sm font-medium ${shareStatus === 'stale' ? 'bg-amber-600 hover:bg-amber-500' : 'bg-indigo-600 hover:bg-indigo-500'}`}>
+          {shareStatus === 'stale' ? '链接已过期 · 复制新链接' : '复制作品链接'}
+        </button>
+        <p className="text-[11px] leading-relaxed text-gray-400">
+          {shareStatus === 'clean'
+            ? '地址栏与当前作品一致，同事打开链接即可复现。'
+            : shareStatus === 'stale'
+              ? '参数已改动，旧链接对应修改前的作品。'
+              : '链接会编码当前全部参数与配色，打开即还原作品。'}
+        </p>
+      </div>
+
       {/* Export */}
-      <div className="flex gap-2 mt-2">
+      <div className="flex gap-2">
         <button onClick={() => store.exportSvg()} className="flex-1 py-2 bg-teal-600 rounded text-sm font-medium">⬇ SVG</button>
         <button onClick={() => store.exportPng()} className="flex-1 py-2 bg-rose-600 rounded text-sm font-medium">⬇ PNG</button>
+      </div>
+
+      {/* Recent */}
+      <div className="border-t border-gray-700 pt-3 mt-1">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-gray-400 font-medium">🕘 最近打开</span>
+          {entries.length > 0 && (
+            <button onClick={clearHistory} className="text-[11px] text-gray-500 hover:text-rose-400">清空</button>
+          )}
+        </div>
+
+        {entries.length === 0 ? (
+          <div className="rounded border border-dashed border-gray-700 px-3 py-4 text-center">
+            <div className="text-2xl mb-1">🗂️</div>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              还没有作品记录。<br />
+              复制并打开一条作品链接后，会在这里列出，方便一键回到最近看过的作品。
+            </p>
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {entries.map(e => (
+              <li key={e.query}>
+                <div className="group flex items-center gap-1 rounded px-2 py-1.5 bg-gray-800 hover:bg-gray-700">
+                  <button
+                    onClick={() => restore(e.query)}
+                    className="flex-1 text-left min-w-0"
+                    title="点击恢复该作品">
+                    <div className="text-xs truncate">{e.title}</div>
+                    <div className="text-[10px] text-gray-500">{relativeTime(e.openedAt)}</div>
+                  </button>
+                  <button
+                    onClick={() => removeEntry(e.query)}
+                    className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-rose-400 text-xs px-1"
+                    title="删除这条记录">
+                    ✕
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   )

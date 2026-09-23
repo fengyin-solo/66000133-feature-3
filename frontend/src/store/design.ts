@@ -1,6 +1,27 @@
 import { create } from 'zustand'
 import type { DesignParams, PatternType } from '../types'
 import { THEMES } from '../themes/palettes'
+import { decodeLocation, DEFAULT_SETTINGS, type ArtSettings, type DecodeResult } from '../share/codec'
+
+/** 模块加载时解码一次地址栏，供设计 store 与分享 store 共用同一份结论 */
+export const bootResult: DecodeResult = decodeLocation(window.location.search)
+
+export function applySettings(d: ArtSettings): Pick<DesignParams, 'pattern' | 'seed' | 'iterations' | 'scale' | 'rotation' | 'strokeWidth' | 'opacity' | 'palette'> {
+  const theme = THEMES.find(t => t.id === d.themeId) ?? THEMES[0]
+  return {
+    pattern: d.pattern,
+    seed: d.seed,
+    iterations: d.iterations,
+    scale: d.scale,
+    rotation: d.rotation,
+    strokeWidth: d.strokeWidth,
+    opacity: d.opacity,
+    palette: theme.colors,
+  }
+}
+
+const initial: ArtSettings = bootResult.settings ?? DEFAULT_SETTINGS
+const initialApplied = applySettings(initial)
 
 interface DesignStore extends DesignParams {
   svgContent: string
@@ -8,21 +29,22 @@ interface DesignStore extends DesignParams {
   setPattern: (p: PatternType) => void
   setTheme: (id: string) => void
   randomSeed: () => void
+  replaceSettings: (s: ArtSettings) => void
   setSvgContent: (s: string) => void
   exportSvg: () => void
   exportPng: () => void
 }
 
 export const useDesignStore = create<DesignStore>((set, get) => ({
-  pattern: 'spiral',
-  seed: 42,
-  iterations: 200,
-  scale: 1.0,
-  rotation: 0,
-  strokeWidth: 1.5,
-  opacity: 0.8,
+  pattern: initialApplied.pattern,
+  seed: initialApplied.seed,
+  iterations: initialApplied.iterations,
+  scale: initialApplied.scale,
+  rotation: initialApplied.rotation,
+  strokeWidth: initialApplied.strokeWidth,
+  opacity: initialApplied.opacity,
   bgColor: '#030712',
-  palette: THEMES[0].colors,
+  palette: initialApplied.palette,
   width: 800,
   height: 1000,
   svgContent: '',
@@ -33,6 +55,7 @@ export const useDesignStore = create<DesignStore>((set, get) => ({
     if (theme) set({ palette: theme.colors })
   },
   randomSeed: () => set({ seed: Math.floor(Math.random() * 99999) }),
+  replaceSettings: (s) => set(applySettings(s)),
   setSvgContent: (s) => set({ svgContent: s }),
   exportSvg: () => {
     const { svgContent } = get()
